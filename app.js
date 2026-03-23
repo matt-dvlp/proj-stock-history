@@ -88,23 +88,21 @@ async function search() {
   hideResult();
 
   try {
-    // fetch daily data + company overview in parallel (overview is non-critical)
-    const [dailyResult, overviewResult] = await Promise.allSettled([
-      fetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full&apikey=${key}`)
-        .then(r => r.json()),
-      fetch(`${API_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${key}`)
-        .then(r => r.json())
-    ]);
+    // fetch daily data first, then overview (sequential — free tier allows 1 req/sec)
+    const data = await fetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full&apikey=${key}`)
+      .then(r => r.json());
 
-    if (dailyResult.status === 'rejected') throw new Error('Network error. Check your connection.');
+    if (data['Note'])                     throw new Error('Per-minute rate limit hit (5 req/min). Wait a moment and try again.');
+    if (data['Information'])              throw new Error(data['Information']);
+    if (data['Error Message'])            throw new Error(`Unknown ticker: ${ticker}`);
+    if (!data['Time Series (Daily)'])     throw new Error('No data returned. Check your API key or ticker.');
 
-    const data     = dailyResult.value;
-    const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : {};
+    await new Promise(r => setTimeout(r, 1100)); // respect 1 req/sec
 
-    if (data['Note'])          throw new Error('Per-minute rate limit hit (5 req/min). Wait a moment and try again.');
-    if (data['Information'])   throw new Error(data['Information']);
-    if (data['Error Message']) throw new Error(`Unknown ticker: ${ticker}`);
-    if (!data['Time Series (Daily)']) throw new Error('No data returned. Check your API key or ticker.');
+    const overview = await fetch(`${API_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${key}`)
+      .then(r => r.json())
+      .catch(() => ({}));
+
 
     const series   = data['Time Series (Daily)'];
     const allDates = Object.keys(series).sort(); // ascending
