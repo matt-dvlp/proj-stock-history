@@ -88,17 +88,23 @@ async function search() {
   hideResult();
 
   try {
-    // fetch daily data + company overview in parallel
-    const [dailyRes, overviewRes] = await Promise.all([
-      fetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full&apikey=${key}`),
+    // fetch daily data + company overview in parallel (overview is non-critical)
+    const [dailyResult, overviewResult] = await Promise.allSettled([
+      fetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full&apikey=${key}`)
+        .then(r => r.json()),
       fetch(`${API_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${key}`)
+        .then(r => r.json())
     ]);
 
-    const [data, overview] = await Promise.all([dailyRes.json(), overviewRes.json()]);
+    if (dailyResult.status === 'rejected') throw new Error('Network error. Check your connection.');
 
-    if (data['Note'] || data['Information']) throw new Error('API rate limit reached. Wait a minute and try again.');
-    if (data['Error Message'])              throw new Error(`Unknown ticker: ${ticker}`);
-    if (!data['Time Series (Daily)'])       throw new Error('No data returned. Check your API key or ticker.');
+    const data     = dailyResult.value;
+    const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : {};
+
+    if (data['Note'])          throw new Error('Per-minute rate limit hit (5 req/min). Wait a moment and try again.');
+    if (data['Information'])   throw new Error('Daily limit reached (25 req/day) or invalid API key.');
+    if (data['Error Message']) throw new Error(`Unknown ticker: ${ticker}`);
+    if (!data['Time Series (Daily)']) throw new Error('No data returned. Check your API key or ticker.');
 
     const series   = data['Time Series (Daily)'];
     const allDates = Object.keys(series).sort(); // ascending
