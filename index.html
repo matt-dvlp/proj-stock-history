@@ -46,6 +46,8 @@
       <button id="searchBtn">Search</button>
     </div>
 
+    <p class="search-hint">Each search uses 3 of your 25 daily API calls (daily + monthly + overview).</p>
+
     <!-- ERROR -->
     <div class="error-box" id="errorBox" hidden></div>
 
@@ -85,7 +87,7 @@
       <div class="history-section">
         <div class="history-header">
           <span>Monthly Snapshots</span>
-          <span class="history-sub">1st trading day of each month — last 12 months</span>
+          <span class="history-sub">Last trading day of each month — last 12 months</span>
         </div>
         <div class="history-grid" id="monthlyTable"></div>
       </div>
@@ -94,7 +96,7 @@
       <div class="history-section">
         <div class="history-header">
           <span>Yearly Snapshots</span>
-          <span class="history-sub">1st trading day of January — all available years</span>
+          <span class="history-sub">Last trading day of January — all available years</span>
         </div>
         <div class="history-grid" id="yearlyTable"></div>
       </div>

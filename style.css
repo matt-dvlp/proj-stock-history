@@ -230,6 +230,14 @@ h1 {
 .search-bar button:hover { opacity: 0.9; }
 .search-bar button:active { transform: scale(0.97); }
 
+.search-hint {
+  font-size: 0.7rem;
+  color: #444;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0.25rem;
+}
+
 /* ── ERROR ── */
 .error-box {
   background: rgba(239, 68, 68, 0.1);
@@ -242,6 +250,8 @@ h1 {
 }
 
 /* ── LOADER ── */
+[hidden] { display: none !important; }
+
 .loader {
   display: flex;
   align-items: center;

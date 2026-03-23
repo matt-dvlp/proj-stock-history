@@ -88,31 +88,30 @@ async function search() {
   hideResult();
 
   try {
-    // fetch daily data first, then overview (sequential — free tier allows 1 req/sec)
-    const data = await fetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full&apikey=${key}`)
-      .then(r => r.json());
+    // 1. Daily compact (free) — last 100 days, enough for 7d chart
+    const daily = await apiFetch(`${API_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${key}`);
+    if (!daily['Time Series (Daily)']) throw new Error(`Unknown ticker: ${ticker}`);
 
-    if (data['Note'])                     throw new Error('Per-minute rate limit hit (5 req/min). Wait a moment and try again.');
-    if (data['Information'])              throw new Error(data['Information']);
-    if (data['Error Message'])            throw new Error(`Unknown ticker: ${ticker}`);
-    if (!data['Time Series (Daily)'])     throw new Error('No data returned. Check your API key or ticker.');
+    // 2. Monthly (free, full history) — for monthly & yearly tables
+    await delay(1100);
+    const monthly = await apiFetch(`${API_BASE}?function=TIME_SERIES_MONTHLY&symbol=${ticker}&apikey=${key}`);
+    if (!monthly['Monthly Time Series']) throw new Error('Could not load monthly data.');
 
-    await new Promise(r => setTimeout(r, 1100)); // respect 1 req/sec
-
-    const overview = await fetch(`${API_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${key}`)
-      .then(r => r.json())
+    // 3. Overview (non-critical, free)
+    await delay(1100);
+    const overview = await apiFetch(`${API_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${key}`)
       .catch(() => ({}));
 
+    // ── daily series (chart + stats)
+    const dailySeries = daily['Time Series (Daily)'];
+    const dailyDates  = Object.keys(dailySeries).sort();
+    const last7       = dailyDates.slice(-7);
 
-    const series   = data['Time Series (Daily)'];
-    const allDates = Object.keys(series).sort(); // ascending
-    const last7    = allDates.slice(-7);
-
-    const closes  = last7.map(d => parseFloat(series[d]['4. close']));
-    const highs   = last7.map(d => parseFloat(series[d]['2. high']));
-    const lows    = last7.map(d => parseFloat(series[d]['3. low']));
-    const latest  = series[last7[last7.length - 1]];
-    const prev    = series[last7[last7.length - 2]];
+    const closes  = last7.map(d => parseFloat(dailySeries[d]['4. close']));
+    const highs   = last7.map(d => parseFloat(dailySeries[d]['2. high']));
+    const lows    = last7.map(d => parseFloat(dailySeries[d]['3. low']));
+    const latest  = dailySeries[last7[last7.length - 1]];
+    const prev    = dailySeries[last7[last7.length - 2]];
 
     const lastClose = parseFloat(latest['4. close']);
     const prevClose = parseFloat(prev['4. close']);
@@ -141,11 +140,13 @@ async function search() {
     // ── chart (unchanged)
     renderChart(last7, closes, closes[0] <= closes[closes.length - 1]);
 
-    // ── history tables
-    renderHistory('monthlyTable', buildMonthlyData(series, allDates));
-    renderHistory('yearlyTable',  buildYearlyData(series, allDates));
+    // ── history tables (built from monthly series)
+    const monthlySeries = monthly['Monthly Time Series'];
+    const monthlyDates  = Object.keys(monthlySeries).sort(); // ascending, end-of-month dates
+    renderHistory('monthlyTable', buildMonthlyData(monthlySeries, monthlyDates));
+    renderHistory('yearlyTable',  buildYearlyData(monthlySeries, monthlyDates));
 
-    trackUsage(2); // 2 API calls per search (daily + overview)
+    trackUsage(3); // 3 API calls per search
     showResult();
 
   } catch (err) {
@@ -155,30 +156,21 @@ async function search() {
   }
 }
 
-// ── HISTORY BUILDERS ─────────────────────────────────────
+// ── HISTORY BUILDERS (monthly series) ────────────────────
+// Monthly series dates are end-of-month trading days (e.g. 2024-01-31)
 
-// Returns the first available trading day on or after targetStr (YYYY-MM-DD)
-// that falls within the same month.
-function firstTradingDayInMonth(allDates, year, month) {
-  const target    = `${year}-${String(month).padStart(2, '0')}-01`;
-  const nextMonth = month === 12
-    ? `${year + 1}-01-01`
-    : `${year}-${String(month + 1).padStart(2, '0')}-01`;
-
-  return allDates.find(d => d >= target && d < nextMonth) || null;
-}
-
-// 1st trading day of each of the last 12 completed calendar months
+// Last 12 months — one entry per month
 function buildMonthlyData(series, allDates) {
   const rows = [];
   const now  = new Date();
 
   for (let i = 1; i <= 12; i++) {
     let year  = now.getFullYear();
-    let month = now.getMonth() + 1 - i; // getMonth() is 0-based
+    let month = now.getMonth() + 1 - i;
     if (month <= 0) { month += 12; year -= 1; }
 
-    const date = firstTradingDayInMonth(allDates, year, month);
+    const ym   = `${year}-${String(month).padStart(2, '0')}`;
+    const date = allDates.find(d => d.startsWith(ym));
     if (!date) continue;
 
     rows.push({
@@ -191,14 +183,14 @@ function buildMonthlyData(series, allDates) {
   return rows.reverse(); // oldest → newest
 }
 
-// 1st trading day of January for each available year (excluding current year)
+// One entry per year — last trading day of January for each available year
 function buildYearlyData(series, allDates) {
   const rows        = [];
   const currentYear = new Date().getFullYear();
   const firstYear   = parseInt(allDates[0].split('-')[0]);
 
   for (let y = currentYear - 1; y >= firstYear; y--) {
-    const date = firstTradingDayInMonth(allDates, y, 1);
+    const date = allDates.find(d => d.startsWith(`${y}-01`));
     if (!date) continue;
     rows.push({ label: String(y), date, close: parseFloat(series[date]['4. close']) });
   }
@@ -239,6 +231,19 @@ function renderHistory(elementId, rows) {
     `;
     container.appendChild(el);
   });
+}
+
+// ── API HELPERS ──────────────────────────────────────────
+async function apiFetch(url) {
+  const res  = await fetch(url);
+  const data = await res.json();
+  if (data['Note'])        throw new Error('Per-minute limit hit (5 req/min). Wait a moment.');
+  if (data['Information']) throw new Error(data['Information']);
+  return data;
+}
+
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
 }
 
 // ── CHART (unchanged) ────────────────────────────────────
@@ -303,7 +308,10 @@ function formatVolume(n) {
   return n.toString();
 }
 
-function showLoader(on)  { document.getElementById('loader').hidden = !on; }
+function showLoader(on)  {
+  document.getElementById('loader').hidden = !on;
+  document.getElementById('searchBtn').disabled = on;
+}
 function hideResult()    { document.getElementById('result').hidden = true; }
 function showResult()    { document.getElementById('result').hidden = false; }
 function hideError()     { document.getElementById('errorBox').hidden = true; }
