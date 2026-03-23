@@ -10,8 +10,44 @@ function getApiKey() {
   return localStorage.getItem('av_api_key') || '';
 }
 
+// ── USAGE TRACKING ───────────────────────────────────────
+const DAILY_LIMIT = 25;
+
+function getUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (localStorage.getItem('av_usage_date') !== today) {
+    localStorage.setItem('av_usage_date', today);
+    localStorage.setItem('av_usage_count', '0');
+  }
+  return parseInt(localStorage.getItem('av_usage_count') || '0');
+}
+
+function trackUsage(calls) {
+  const count = getUsage() + calls;
+  localStorage.setItem('av_usage_count', String(count));
+  updateUsageDisplay();
+}
+
+function updateUsageDisplay() {
+  const used  = getUsage();
+  const pct   = Math.min((used / DAILY_LIMIT) * 100, 100);
+  document.getElementById('usageText').textContent = `${used} / ${DAILY_LIMIT} calls today`;
+  const fill = document.getElementById('usageFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 80 ? '#f87171' : pct >= 50 ? '#fbbf24' : '#34d399';
+}
+
+// ── KEY CONNECT / DISCONNECT ─────────────────────────────
 function initBanner() {
-  if (getApiKey()) apiBanner.classList.add('hidden');
+  if (getApiKey()) {
+    apiBanner.classList.add('hidden');
+    showKeyStatus();
+  }
+}
+
+function showKeyStatus() {
+  document.getElementById('keyStatus').hidden = false;
+  updateUsageDisplay();
 }
 
 saveKeyBtn.addEventListener('click', () => {
@@ -19,6 +55,18 @@ saveKeyBtn.addEventListener('click', () => {
   if (!key) return;
   localStorage.setItem('av_api_key', key);
   apiBanner.classList.add('hidden');
+  showKeyStatus();
+});
+
+document.getElementById('disconnectBtn').addEventListener('click', () => {
+  localStorage.removeItem('av_api_key');
+  localStorage.removeItem('av_usage_count');
+  localStorage.removeItem('av_usage_date');
+  document.getElementById('keyStatus').hidden = true;
+  apiBanner.classList.remove('hidden');
+  apiKeyInput.value = '';
+  hideResult();
+  hideError();
 });
 
 // ── SEARCH ──────────────────────────────────────────────
@@ -93,6 +141,7 @@ async function search() {
     renderHistory('monthlyTable', buildMonthlyData(series, allDates));
     renderHistory('yearlyTable',  buildYearlyData(series, allDates));
 
+    trackUsage(2); // 2 API calls per search (daily + overview)
     showResult();
 
   } catch (err) {

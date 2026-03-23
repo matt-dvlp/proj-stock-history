@@ -27,6 +27,19 @@
       </div>
     </div>
 
+    <!-- KEY STATUS (shown when key is saved) -->
+    <div class="key-status" id="keyStatus" hidden>
+      <div class="key-status-left">
+        <span class="key-dot"></span>
+        <span class="key-status-label">API key active</span>
+        <span class="key-usage-bar">
+          <span class="key-usage-fill" id="usageFill"></span>
+        </span>
+        <span class="key-usage-text" id="usageText">0 / 25 calls today</span>
+      </div>
+      <button class="key-disconnect-btn" id="disconnectBtn">Disconnect</button>
+    </div>
+
     <!-- SEARCH -->
     <div class="search-bar">
       <input type="text" id="tickerInput" placeholder="Enter ticker (e.g. AAPL, TSLA, MSFT)" autocomplete="off" />
