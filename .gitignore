@@ -1,0 +1,3 @@
+myKeys.txt
+*.env
+.env*

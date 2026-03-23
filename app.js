@@ -102,7 +102,7 @@ async function search() {
     const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : {};
 
     if (data['Note'])          throw new Error('Per-minute rate limit hit (5 req/min). Wait a moment and try again.');
-    if (data['Information'])   throw new Error('Daily limit reached (25 req/day) or invalid API key.');
+    if (data['Information'])   throw new Error(data['Information']);
     if (data['Error Message']) throw new Error(`Unknown ticker: ${ticker}`);
     if (!data['Time Series (Daily)']) throw new Error('No data returned. Check your API key or ticker.');
 
