@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Stock Tracker</h1>
+
+    <!-- API KEY BANNER -->
+    <div class="api-banner" id="apiBanner">
+      <div class="api-banner-text">
+        <span class="api-icon">🔑</span>
+        <div>
+          <strong>Alpha Vantage API Key required</strong>
+          <p>Free at <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> — no credit card needed.</p>
+        </div>
+      </div>
+      <div class="api-input-row">
+        <input type="text" id="apiKeyInput" placeholder="Paste your API key here" autocomplete="off" />
+        <button id="saveKeyBtn">Save</button>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="search-bar">
+      <input type="text" id="tickerInput" placeholder="Enter ticker (e.g. AAPL, TSLA, MSFT)" autocomplete="off" />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <!-- ERROR -->
+    <div class="error-box" id="errorBox" hidden></div>
+
+    <!-- RESULT -->
+    <div id="result" hidden>
+
+      <!-- HEADER -->
+      <div class="stock-header">
+        <div>
+          <div class="stock-name" id="stockName">—</div>
+          <div class="stock-ticker-label" id="stockTickerLabel">—</div>
+        </div>
+        <div class="stock-price-block">
+          <div class="stock-price" id="stockPrice">—</div>
+          <div class="stock-change" id="stockChange">—</div>
+        </div>
+      </div>
+
+      <!-- STATS ROW -->
+      <div class="stats-row">
+        <div class="stat"><span>Open</span><strong id="statOpen">—</strong></div>
+        <div class="stat"><span>High</span><strong id="statHigh">—</strong></div>
+        <div class="stat"><span>Low</span><strong id="statLow">—</strong></div>
+        <div class="stat"><span>Volume</span><strong id="statVolume">—</strong></div>
+        <div class="stat"><span>7d High</span><strong id="stat7High">—</strong></div>
+        <div class="stat"><span>7d Low</span><strong id="stat7Low">—</strong></div>
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+
+      <div class="chart-footer">Closing prices — last 7 trading days</div>
+
+      <!-- MONTHLY TABLE -->
+      <div class="history-section">
+        <div class="history-header">
+          <span>Monthly Snapshots</span>
+          <span class="history-sub">1st trading day of each month — last 12 months</span>
+        </div>
+        <div class="history-grid" id="monthlyTable"></div>
+      </div>
+
+      <!-- YEARLY TABLE -->
+      <div class="history-section">
+        <div class="history-header">
+          <span>Yearly Snapshots</span>
+          <span class="history-sub">1st trading day of January — all available years</span>
+        </div>
+        <div class="history-grid" id="yearlyTable"></div>
+      </div>
+
+    </div>
+
+    <!-- LOADING -->
+    <div class="loader" id="loader" hidden>
+      <div class="spinner"></div>
+      <span>Fetching data…</span>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
